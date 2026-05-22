@@ -1,0 +1,90 @@
+#!/bin/zsh
+# Anvil launcher — portable across installs.
+#
+# Resolution order for the `anvil` binary:
+#   1. $ANVIL_BIN (escape hatch — devs / packagers)
+#   2. anvil on PATH (the usual pipx / brew install)
+#   3. ~/.local/bin/anvil (pipx default)
+#   4. /opt/homebrew/bin/anvil (brew on Apple Silicon)
+#   5. /usr/local/bin/anvil (brew on Intel)
+#
+# If nothing's found, we show a friendly dialog with install instructions
+# instead of opening Terminal to a "command not found" wall.
+
+# Defensive: keep the harness on Claude Code's OAuth subscription. If the user
+# ever sets ANTHROPIC_API_KEY for another tool, this prevents Anvil from
+# silently switching to per-token API billing.
+unset ANTHROPIC_API_KEY
+
+# Hydrate PATH for the GUI launch context. macOS App-launched processes get a
+# bare /usr/bin:/bin PATH; without these, the user's pipx/brew installs are
+# invisible.
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+PROFILE_NAME="Anvil"
+PROFILE_FILE="$(dirname "$0")/../Resources/Anvil.terminal"
+
+# 1–5: find the anvil binary.
+ANVIL_BIN_RESOLVED=""
+for candidate in "$ANVIL_BIN" \
+                 "$(/usr/bin/which anvil 2>/dev/null)" \
+                 "$HOME/.local/bin/anvil" \
+                 "/opt/homebrew/bin/anvil" \
+                 "/usr/local/bin/anvil"; do
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+        ANVIL_BIN_RESOLVED="$candidate"
+        break
+    fi
+done
+
+if [[ -z "$ANVIL_BIN_RESOLVED" ]]; then
+    /usr/bin/osascript <<'EOF'
+display dialog "Anvil isn't installed yet.
+
+Install it with one of:
+
+  • brew install --cask your-tap/anvil
+  • pipx install anvil-harness
+
+Then re-launch Anvil." with title "Anvil — first-run setup" buttons {"OK"} default button "OK" with icon caution
+EOF
+    exit 1
+fi
+
+# Prefer iTerm if it's actually installed (check bundle path — don't use
+# `osascript -e 'id of application ...'`, which pops a "Where is X?" picker
+# when the app is missing).
+if [[ -d "/Applications/iTerm.app" || -d "$HOME/Applications/iTerm.app" ]]; then
+    /usr/bin/osascript <<EOF
+tell application "iTerm"
+    activate
+    create window with default profile
+    tell current session of current window
+        write text "clear && exec '$ANVIL_BIN_RESOLVED'"
+    end tell
+end tell
+EOF
+    exit 0
+fi
+
+# ---- Terminal.app path ----
+
+# 1. Make sure our custom "Anvil" profile is installed (Cmd+C / Cmd+W remaps).
+if [[ -f "$PROFILE_FILE" ]]; then
+    PROFILE_EXISTS=$(/usr/bin/osascript -e "tell application \"Terminal\" to return (name of settings sets) contains \"$PROFILE_NAME\"" 2>/dev/null)
+    if [[ "$PROFILE_EXISTS" != "true" ]]; then
+        /usr/bin/open "$PROFILE_FILE"
+        sleep 0.5
+    fi
+fi
+
+# 2. Open a new window, apply the Anvil profile, run anvil.
+/usr/bin/osascript <<EOF
+tell application "Terminal"
+    activate
+    set newTab to do script "clear && exec '$ANVIL_BIN_RESOLVED'"
+    try
+        set current settings of newTab to settings set "$PROFILE_NAME"
+    end try
+end tell
+EOF

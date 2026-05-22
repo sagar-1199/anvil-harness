@@ -1,0 +1,40 @@
+[project]
+name = "anvil-harness"
+version = "0.1.1"
+description = "Anvil — a local TUI for any coding agent (Claude Code, Codex, …) with projects, conversations, and cross-conversation memory."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Vidyasagar Chamle", email = "vidyasagar.chamle@gmail.com" }
+]
+requires-python = ">=3.11"
+keywords = ["claude", "codex", "ai", "coding-agent", "tui", "textual", "anvil"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "claude-agent-sdk>=0.2.83",
+    "textual>=0.80",
+]
+
+[project.urls]
+Homepage = "https://github.com/sagar-1199/anvil-harness"
+Repository = "https://github.com/sagar-1199/anvil-harness"
+Issues = "https://github.com/sagar-1199/anvil-harness/issues"
+
+[project.scripts]
+anvil = "anvil_harness:main"
+# Back-compat shim — old name still works for users upgrading in place.
+anvil-harness = "anvil_harness:main"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
